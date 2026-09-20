@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FitLife Tracker</title>
+    <style>
+        :root {
+            --bg-color: #f0f2f5;
+            --card-bg: #ffffff;
+            --primary: #4a90e2;
+            --success: #2ecc71;
+            --warning: #f1c40f;
+            --text: #333;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        h1 {
+            text-align: center;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .counter {
+            font-size: 2rem;
+            font-weight: bold;
+            margin: 10px 0;
+            color: var(--primary);
+        }
+
+        button {
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            transition: background 0.2s;
+            width: 100%;
+        }
+
+        button:hover {
+            opacity: 0.9;
+        }
+
+        button.btn-water {
+            background-color: #3498db;
+        }
+
+        button.btn-gps {
+            background-color: var(--success);
+        }
+
+        button.btn-gps.tracking {
+            background-color: #e74c3c;
+        }
+
+        .suggestions-list {
+            text-align: left;
+            margin-top: 15px;
+            list-style: none;
+        }
+
+        .suggestions-list li {
+            background: #f8f9fa;
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            border-left: 4px solid var(--warning);
+            font-size: 0.95rem;
+        }
+
+        .suggestions-list strong {
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>FitLife Tracker</h1>
+
+    <!-- Card de Calorias -->
+    <div class="card">
+        <h3>Meta Diária de Calorias</h3>
+        <div class="counter" id="cal-display">2000 kcal</div>
+        <p style="font-size: 0.85rem; color: #666;">Gasto estimado de sobrevivência + atividades calculadas.</p>
+    </div>
+
+    <!-- Grid de Água e Passos -->
+    <div class="grid-2">
+        <!-- Água -->
+        <div class="card">
+            <h3>Água</h3>
+            <div class="counter" id="water-count">0</div>
+            <p>Copos (250ml)</p>
+            <button class="btn-water" onclick="addWater()" style="margin-top: 10px;">+ Beber</button>
+        </div>
+
+        <!-- Passos -->
+        <div class="card">
+            <h3>Passos</h3>
+            <div class="counter" id="steps-count">0</div>
+            <p id="distance-display">0 metros</p>
+            <button class="btn-gps" id="gps-btn" onclick="toggleTracking()" style="margin-top: 10px;">Ativar GPS</button>
+        </div>
+    </div>
+
+    <!-- Sugestões de Exercícios rápidos -->
+    <div class="card">
+        <h3>Treinos Rápidos (Até 15 min)</h3>
+        <p style="color: #666; font-size: 0.9rem;">Ideais para queimar gordura e acelerar o metabolismo:</p>
+        <ul class="suggestions-list">
+            <li><strong>HIIT Tabata (4 min):</strong> 20 segundos de polichinelos intensos, 10 segundos de descanso. Repita 8 vezes. Altíssimo gasto calórico.</li>
+            <li><strong>Circuito Queima-Gordura (15 min):</strong> 3 séries de: 10 burpees, 15 agachamentos, 20 alpinistas (mountain climbers) e 45s de prancha.</li>
+            <li><strong>Corrida Estacionária (10 min):</strong> Corra sem sair do lugar elevando os joelhos por 45 segundos, descanse 15 segundos. Mantenha o ritmo alto.</li>
+            <li><strong>AMRAP Express (12 min):</strong> Faça o máximo de repetições possíveis de: 5 flexões, 10 abdominais e 15 polichinelos dentro do tempo.</li>
+        </ul>
+    </div>
+</div>
+
+<script>
+    // Estado do App
+    let waterCups = 0;
+    let steps = 0;
+    let totalDistance = 0; // em metros
+    let watchId = null;
+    let lastPosition = null;
+    const baseCalories = 2000; // Média base para cálculo simplificado
+
+    // Elementos do DOM
+    const waterDisplay = document.getElementById('water-count');
+    const stepsDisplay = document.getElementById('steps-count');
+    const distanceDisplay = document.getElementById('distance-display');
+    const calDisplay = document.getElementById('cal-display');
+    const gpsBtn = document.getElementById('gps-btn');
+
+    // Função de Água
+    function addWater() {
+        waterCups++;
+        waterDisplay.innerText = waterCups;
+        updateCalories();
+    }
+
+    // Atualiza o painel de calorias (Passos queimam calorias adicionais)
+    function updateCalories() {
+        // Estimativa: 1 passo queima cerca de 0.04 kcal
+        const extraCalories = Math.round(steps * 0.04);
+        calDisplay.innerText = `${baseCalories + extraCalories} kcal`;
+    }
+
+    // Alternar rastreamento por GPS
+    function toggleTracking() {
+        if (watchId === null) {
+            if ("geolocation" in navigator) {
+                gpsBtn.innerText = "Parar GPS";
+                gpsBtn.classList.add('tracking');
+                
+                watchId = navigator.geolocation.watchPosition(
+                    updateLocation, 
+                    handleError, 
+                    { enableHighAccuracy: true, maximumAge: 0 }
+                );
+            } else {
+                alert("Desculpe, seu dispositivo não suporta Geolocalização.");
+            }
+        } else {
+            navigator.geolocation.clearWatch(watchId);
+            watchId = null;
+            lastPosition = null;
+            gpsBtn.innerText = "Ativar GPS";
+            gpsBtn.classList.remove('tracking');
+        }
+    }
+
+    // Processa a mudança de localização e calcula distância
+    function updateLocation(position) {
+        const { latitude, longitude } = position.coords;
+
+        if (lastPosition) {
+            const distanceMoved = calculateDistance(
+                lastPosition.latitude, 
+                lastPosition.longitude, 
+                latitude, 
+                longitude
+            );
+
+            // Filtro simples para ignorar pequenas oscilações de GPS parado (< 1.5 metros)
+            if (distanceMoved > 1.5) {
+                totalDistance += distanceMoved;
+                
+                // Estimativa padrão: ~0.75 metros por passo comercial/caminhada
+                steps = Math.round(totalDistance / 0.75);
+                
+                // Atualizar tela
+                stepsDisplay.innerText = steps;
+                distanceDisplay.innerText = totalDistance > 1000 
+                    ? `${(totalDistance / 1000).toFixed(2)} km` 
+                    : `${Math.round(totalDistance)} metros`;
+                
+                updateCalories();
+            }
+        }
+
+        lastPosition = { latitude, longitude };
+    }
+
+    // Fórmula de Haversine para calcular distância entre duas coordenadas em metros
+    function calculateDistance(lat1, lon1, lat2, lon2) {
+        const R = 6371e3; // Raio da Terra em metros
+        const phi1 = lat1 * Math.PI / 180;
+        const phi2 = lat2 * Math.PI / 180;
+        const deltaPhi = (lat2 - lat1) * Math.PI / 180;
+        const deltaLambda = (lon2 - lon1) * Math.PI / 180;
+
+        const a = Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+                  Math.cos(phi1) * Math.cos(phi2) *
+                  Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+        
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+        return R * c; 
+    }
+
+    function handleError(error) {
+        console.warn(`Erro no GPS (${error.code}): ${error.message}`);
+        alert("Ative a permissão de localização para que o contador de passos funcione.");
+        toggleTracking();
+    }
+</script>
+
+</body>
+</html>
